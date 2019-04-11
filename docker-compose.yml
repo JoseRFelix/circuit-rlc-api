@@ -1,0 +1,15 @@
+version: "3.7"
+
+services:
+  circuito-rlc-api:
+    build: ./
+    container_name: circuito-rlc-api
+    ports:
+      - "80:80"
+    volumes:
+      - "./app:/app"
+    working_dir: /app
+    environment:
+      FLASK_DEBUG: 1
+      FLASK_APP: ./app/main.py
+    command: flask run --host=0.0.0.0 --port=80 #ONLY IN DEVELOPMENT
