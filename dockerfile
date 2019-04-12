@@ -4,5 +4,5 @@ WORKDIR /app
 
 COPY ./app /app
 
-RUN pip install matplotlib sympy numpy
+RUN pip install matplotlib sympy numpy flask-restful
 
