@@ -2,10 +2,12 @@ from flask import Flask, request
 from flask_restful import reqparse, Resource, Api
 from sympy import *
 from sympy.abc import t
+from flask_cors import CORS
 import sys  # development
 
 app = Flask(__name__)
 api = Api(app)
+CORS(app)
 
 parser = reqparse.RequestParser()
 parser.add_argument(
