@@ -3,6 +3,7 @@ from flask_restful import reqparse, Resource, Api
 from sympy import *
 from sympy.abc import t
 from flask_cors import CORS
+from math import ceil
 import sys  # development
 
 app = Flask(__name__)
@@ -24,22 +25,29 @@ parser.add_argument(
     'q0', type=float, help='Rate to charge for this resource')
 parser.add_argument(
     'i0', type=float, help='Rate to charge for this resource')
+parser.add_argument(
+    'V', type=str, help='Rate to charge for this resource')
 
-
-def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None):
+def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None, V=None):
     q = Function("q")
-    eq = L*q(t).diff(t, 2) + R*q(t).diff(t) + (1/C)*q(t)
+    try:
+        E = sympify(V) if V else 0
+    except SympifyError:
+        return "Wrong input"
+
+    eq = L*q(t).diff(t, 2) + R*q(t).diff(t) + (1/C)*q(t) - E
 
     condition1 = t0 != None and t1 != None and q0 != None and i0 != None
     condition2 = t0 == None and t1 == None and q0 == None and i0 == None
 
     if condition1:
         C1, C2, phi = symbols('C1 C2 phi')
-        solution = dsolve(eq, q(t))
+        solution_with_constants = dsolve(eq, q(t))
 
         constants = solve(
-            [solution.rhs.subs(t, t0)-q0, solution.rhs.diff(t).subs(t, t1)-i0])
-        solution = solution.subs(constants)
+            [solution_with_constants.rhs.subs(t, t0)-q0, solution_with_constants.rhs.diff(t).subs(t, t1)-i0])
+
+        solution = solution_with_constants.subs(constants)
 
         A = sqrt(constants[C1]**2 + constants[C2]**2).evalf(3)
         phi_cos = atan(constants[C2]/constants[C1]).evalf(3)
@@ -59,7 +67,9 @@ def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None):
 
     elif condition2:
         A, C1, C2, phi, theta = symbols('A C1 C2 phi theta')
-        solution = dsolve(eq, q(t))
+        solution_with_constants = dsolve(eq, q(t))
+
+        solution = None
 
         alternate_solution_cos = None
 
@@ -69,10 +79,12 @@ def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None):
         solution = None
         return solution
 
-    if checkodesol(eq, solution)[0]:
-        return [solution, alternate_solution_cos, alternate_solution_sin]
+    check = checkodesol(eq, solution_with_constants)
 
-    return "No solution"
+    if check[0]:
+        return [solution_with_constants, solution, alternate_solution_cos, alternate_solution_sin, None]
+    else:
+        return [solution_with_constants, solution, alternate_solution_cos, alternate_solution_sin, "No solution"]
 
 
 class calculate_ODE(Resource):
@@ -80,18 +92,30 @@ class calculate_ODE(Resource):
         args = parser.parse_args()
 
         solved_equation = solve_ODE_equation(
-            args.L, args.R, args.C, args.t0, args.t1, args.q0, args.i0)
+            args.L, args.R, args.C, args.t0, args.t1, args.q0, args.i0, args.V)
+
+        if (solved_equation[1] == None):
+            solved_equation[1] = latex(None)
+        else:
+            solved_equation[1] = latex(Eq(solved_equation[1].lhs.diff(t), diff(
+                solved_equation[1].rhs, t, 1)))
+
+        result = {'charge_with_constants': latex(solved_equation[0]),
+                  'current_with_constants': latex(Eq(solved_equation[0].lhs.diff(t), diff(solved_equation[0].rhs, t, 1))),
+                  'charge': latex(solved_equation[1] ),
+                  'current':   solved_equation[1],
+                  'alternate_solution_cos': latex(solved_equation[2]),
+                  'alternate_solution_sin': latex(solved_equation[3])
+                  }
 
         if solved_equation == None:
             return {"Message": "Must send correct initial values"}, 400
-        elif solved_equation == "No solution":
-            return {"Message": "The ED has no solution"}, 204
+        elif solved_equation[4] == "No solution":
+            return {**result, "Message": "The DE has no solution"}, 503
+        elif solved_equation == "Wrong input":
+            return {"Message": "Please input correct function or number"}, 400
 
-        return {'charge': latex(solved_equation[0], mode="inline"),
-                'current': latex(Eq(solved_equation[0].lhs.diff(t), diff(solved_equation[0].rhs, t, 1)), mode="inline"),
-                'alternate_solution_cos': latex(solved_equation[1], mode='inline'),
-                'alternate_solution_sin': latex(solved_equation[2], mode='inline')
-                }, 200
+        return result, 200
 
 
 api.add_resource(calculate_ODE, '/calculateODE')
