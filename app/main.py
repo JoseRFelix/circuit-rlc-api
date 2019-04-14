@@ -7,6 +7,7 @@ from math import ceil
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+import random
 import sys  # development
 
 app = Flask(__name__)
@@ -14,23 +15,6 @@ api = Api(app)
 CORS(app)
 
 parser = reqparse.RequestParser()
-parser.add_argument(
-    'L', type=float, required=True, help='Rate to charge for this resource')
-parser.add_argument(
-    'R', type=float, required=True, help='Rate to charge for this resource')
-parser.add_argument(
-    'C', type=float, required=True, help='Rate to charge for this resource')
-parser.add_argument(
-    't0', type=float, help='Rate to charge for this resource')
-parser.add_argument(
-    't1', type=float, help='Rate to charge for this resource')
-parser.add_argument(
-    'q0', type=float, help='Rate to charge for this resource')
-parser.add_argument(
-    'i0', type=float, help='Rate to charge for this resource')
-parser.add_argument(
-    'V', type=str, help='Rate to charge for this resource')
-
 
 def round_expr(expr, num_digits):
     return expr.xreplace({n: round(n, num_digits) for n in expr.atoms(Number)})
@@ -58,6 +42,22 @@ def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None, V=None):
         solution_diff = Eq(solution.lhs.diff(
             t), diff(solution.rhs, t, 1))
 
+        try:
+            sns.set()
+            func = lambdify(t, solution.rhs, 'numpy')      
+            xvals = np.linspace(0, 10, 100)
+            yvals = func(xvals)
+            fig,ax = plt.subplots(1, 1)
+            plt.autoscale()        
+            ax.plot(xvals, yvals)
+            ax.set_xlabel('t')
+            ax.set_ylabel('q(t)')            
+
+            graph = random.getrandbits(16)            
+            plt.savefig("./graphs/%s" % graph)
+        except:
+            graph = None            
+
     elif condition2:
         A, C1, C2, phi, theta = symbols('A C1 C2 phi theta')
         solution_with_constants = round_expr(dsolve(eq, q(t)), 3)
@@ -74,13 +74,30 @@ def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None, V=None):
     check = checkodesol(eq, solution_with_constants)
 
     if check[0]:
-        return [solution_with_constants, solution_with_constants_diff, solution, solution_diff, None]
+        return [solution_with_constants, solution_with_constants_diff, solution, solution_diff, graph, None]
     else:
-        return [solution_with_constants, solution_with_constants_diff, solution, solution_diff, "No solution"]
+        return [solution_with_constants, solution_with_constants_diff, solution, solution_diff, graph, "No solution"]
 
 
 class calculate_ODE(Resource):
     def post(self):
+        parser.add_argument(
+            'L', type=float, required=True, help='Rate to charge for this resource')
+        parser.add_argument(
+            'R', type=float, required=True, help='Rate to charge for this resource')
+        parser.add_argument(
+            'C', type=float, required=True, help='Rate to charge for this resource')
+        parser.add_argument(
+            't0', type=float, help='Rate to charge for this resource')
+        parser.add_argument(
+            't1', type=float, help='Rate to charge for this resource')
+        parser.add_argument(
+            'q0', type=float, help='Rate to charge for this resource')
+        parser.add_argument(
+            'i0', type=float, help='Rate to charge for this resource')
+        parser.add_argument(
+            'V', type=str, help='Rate to charge for this resource')
+
         args = parser.parse_args()
 
         solved_equation = solve_ODE_equation(
@@ -95,29 +112,21 @@ class calculate_ODE(Resource):
                   'current':   latex(solved_equation[3])
                   }
 
-        if solved_equation[4] == "No solution":
-            return {**result, "message": "The DE has no solution"}, 200
-        elif solved_equation[2] != None:
-            p1 = plot(solved_equation[2], show=False)
-            send_file(p1, mimetype="image/png")
+        if solved_equation[5] == "No solution":
+            return {**result, "message": "The DE has no solution"}, 200        
 
         return result, 200
 
-    def get(self):
-        solved_equation = solve_ODE_equation(
-            1/4, 20, 1/300, 0, 0, 4, 0, 0)
-        func = lambdify(t, solved_equation[2].rhs, 'numpy')
-        xvals = np.arange(0, 30, 1)
-        yvals = func(xvals)
-        fig, ax = plt.subplots(1, 1, subplot_kw=dict(aspect='equal'))
-        ax.plot(xvals, yvals)
-        ax.set_xlabel('t')
-        ax.set_ylabel('q(t)')
-        plt.savefig("test.png")
-        return send_file('./test.png', mimetype="image/png")
+class Graph(Resource):
+    def post(self):
+        parser.add_argument(
+            'graph', type=str, help='Rate to charge for this resource')
 
+        args = parser.parse_args()    
+        return send_file(args.graph, mimetype="image/png")
 
 api.add_resource(calculate_ODE, '/calculateODE')
+api.add_resource(Graph, '/graph')
 
 if __name__ == "__main__":
     # Only for debugging while developing
