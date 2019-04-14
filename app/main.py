@@ -28,52 +28,40 @@ parser.add_argument(
 parser.add_argument(
     'V', type=str, help='Rate to charge for this resource')
 
+
+def round_expr(expr, num_digits):
+    return expr.xreplace({n: round(n, num_digits) for n in expr.atoms(Number)})
+
+
 def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None, V=None):
     q = Function("q")
     try:
         E = sympify(V) if V else 0
     except SympifyError:
-        return "Wrong input"
+        return None
 
     eq = L*q(t).diff(t, 2) + R*q(t).diff(t) + (1/C)*q(t) - E
 
     condition1 = t0 != None and t1 != None and q0 != None and i0 != None
     condition2 = t0 == None and t1 == None and q0 == None and i0 == None
 
-    if condition1:
-        C1, C2, phi = symbols('C1 C2 phi')
-        solution_with_constants = dsolve(eq, q(t))
+    if condition1:        
+        solution_with_constants = round_expr(dsolve(eq, q(t)), 3)
+        solution_with_constants_diff = Eq(
+            solution_with_constants.lhs.diff(t), diff(solution_with_constants.rhs, t, 1))         
 
-        constants = solve(
-            [solution_with_constants.rhs.subs(t, t0)-q0, solution_with_constants.rhs.diff(t).subs(t, t1)-i0])
-
-        solution = solution_with_constants.subs(constants)
-
-        A = sqrt(constants[C1]**2 + constants[C2]**2).evalf(3)
-        phi_cos = atan(constants[C2]/constants[C1]).evalf(3)
-        phi_sin = atan(constants[C1]/constants[C2]).evalf(3)
-
-        if phi_cos * 57.30 < -90 and sin(phi_cos) > 0 and cos(phi_cos) < 0:
-            phi_cos = pi + phi_cos
-
-        if phi_sin * 57.30 < -90 and sin(phi_sin) > 0 and cos(phi_sin) < 0:
-            phi_sin = pi + phi_sin
-
-        alternate_solution_cos = trigsimp(dsolve(eq, q(t)).subs(
-            {C1: -A*sin(phi), C2: A*cos(phi)})).subs(phi, -phi_cos)
-
-        alternate_solution_sin = trigsimp(dsolve(eq, q(t)).subs(
-            {C1: A*cos(phi), C2: A*sin(phi)})).subs(phi, phi_sin)
+        solution = round_expr(dsolve(eq, q(t), ics={q(t0): q0, q(t).diff(t).subs(t, t1): i0}), 3)
+        solution_diff = Eq(solution.lhs.diff(
+            t), diff(solution.rhs, t, 1))
 
     elif condition2:
         A, C1, C2, phi, theta = symbols('A C1 C2 phi theta')
-        solution_with_constants = dsolve(eq, q(t))
+        solution_with_constants = round_expr(dsolve(eq, q(t)), 3)
+        solution_with_constants_diff = Eq(
+            solution_with_constants.lhs.diff(t), diff(solution_with_constants.rhs, t, 1))
 
         solution = None
-
-        alternate_solution_cos = None
-
-        alternate_solution_sin = None
+        solution_diff = None
 
     else:
         solution = None
@@ -82,9 +70,9 @@ def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None, V=None):
     check = checkodesol(eq, solution_with_constants)
 
     if check[0]:
-        return [solution_with_constants, solution, alternate_solution_cos, alternate_solution_sin, None]
+        return [solution_with_constants, solution_with_constants_diff, solution, solution_diff, None]
     else:
-        return [solution_with_constants, solution, alternate_solution_cos, alternate_solution_sin, "No solution"]
+        return [solution_with_constants, solution_with_constants_diff, solution, solution_diff, "No solution"]
 
 
 class calculate_ODE(Resource):
@@ -94,26 +82,17 @@ class calculate_ODE(Resource):
         solved_equation = solve_ODE_equation(
             args.L, args.R, args.C, args.t0, args.t1, args.q0, args.i0, args.V)
 
-        if (solved_equation[1] == None):
-            solved_equation[1] = latex(None)
-        else:
-            solved_equation[1] = latex(Eq(solved_equation[1].lhs.diff(t), diff(
-                solved_equation[1].rhs, t, 1)))
+        if solved_equation == None:
+            return {"message": "Must send correct initial values"}, 400
 
         result = {'charge_with_constants': latex(solved_equation[0]),
-                  'current_with_constants': latex(Eq(solved_equation[0].lhs.diff(t), diff(solved_equation[0].rhs, t, 1))),
-                  'charge': latex(solved_equation[1] ),
-                  'current':   solved_equation[1],
-                  'alternate_solution_cos': latex(solved_equation[2]),
-                  'alternate_solution_sin': latex(solved_equation[3])
+                  'current_with_constants': latex(solved_equation[1]),
+                  'charge': latex(solved_equation[2]),
+                  'current':   latex(solved_equation[3])
                   }
 
-        if solved_equation == None:
-            return {"Message": "Must send correct initial values"}, 400
-        elif solved_equation[4] == "No solution":
-            return {**result, "Message": "The DE has no solution"}, 503
-        elif solved_equation == "Wrong input":
-            return {"Message": "Please input correct function or number"}, 400
+        if solved_equation[4] == "No solution":
+            return {**result, "message": "The DE has no solution"}, 200
 
         return result, 200
 
