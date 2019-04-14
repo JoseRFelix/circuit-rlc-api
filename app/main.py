@@ -1,9 +1,12 @@
-from flask import Flask, request
+from flask import Flask, request, send_file
 from flask_restful import reqparse, Resource, Api
 from sympy import *
 from sympy.abc import t
 from flask_cors import CORS
 from math import ceil
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
 import sys  # development
 
 app = Flask(__name__)
@@ -45,12 +48,13 @@ def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None, V=None):
     condition1 = t0 != None and t1 != None and q0 != None and i0 != None
     condition2 = t0 == None and t1 == None and q0 == None and i0 == None
 
-    if condition1:        
+    if condition1:
         solution_with_constants = round_expr(dsolve(eq, q(t)), 3)
         solution_with_constants_diff = Eq(
-            solution_with_constants.lhs.diff(t), diff(solution_with_constants.rhs, t, 1))         
+            solution_with_constants.lhs.diff(t), diff(solution_with_constants.rhs, t, 1))
 
-        solution = round_expr(dsolve(eq, q(t), ics={q(t0): q0, q(t).diff(t).subs(t, t1): i0}), 3)
+        solution = round_expr(
+            dsolve(eq, q(t), ics={q(t0): q0, q(t).diff(t).subs(t, t1): i0}), 3)
         solution_diff = Eq(solution.lhs.diff(
             t), diff(solution.rhs, t, 1))
 
@@ -93,8 +97,24 @@ class calculate_ODE(Resource):
 
         if solved_equation[4] == "No solution":
             return {**result, "message": "The DE has no solution"}, 200
+        elif solved_equation[2] != None:
+            p1 = plot(solved_equation[2], show=False)
+            send_file(p1, mimetype="image/png")
 
         return result, 200
+
+    def get(self):
+        solved_equation = solve_ODE_equation(
+            1/4, 20, 1/300, 0, 0, 4, 0, 0)
+        func = lambdify(t, solved_equation[2].rhs, 'numpy')
+        xvals = np.arange(0, 30, 1)
+        yvals = func(xvals)
+        fig, ax = plt.subplots(1, 1, subplot_kw=dict(aspect='equal'))
+        ax.plot(xvals, yvals)
+        ax.set_xlabel('t')
+        ax.set_ylabel('q(t)')
+        plt.savefig("test.png")
+        return send_file('./test.png', mimetype="image/png")
 
 
 api.add_resource(calculate_ODE, '/calculateODE')
