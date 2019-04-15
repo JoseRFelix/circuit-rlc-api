@@ -16,6 +16,7 @@ CORS(app)
 
 parser = reqparse.RequestParser()
 
+
 def round_expr(expr, num_digits):
     return expr.xreplace({n: round(n, num_digits) for n in expr.atoms(Number)})
 
@@ -43,20 +44,31 @@ def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None, V=None):
             t), diff(solution.rhs, t, 1))
 
         try:
+            fig = plt.figure()
+            print(plt.style.available, file=sys.stderr)
             sns.set()
-            func = lambdify(t, solution.rhs, 'numpy')      
+            plt.style.use('ggplot')
+            func = lambdify(t, solution.rhs, 'numpy')
             xvals = np.linspace(0, 10, 100)
             yvals = func(xvals)
-            fig,ax = plt.subplots(1, 1)
-            plt.autoscale()        
-            ax.plot(xvals, yvals)
+            ax = fig.add_subplot(211)
             ax.set_xlabel('t')
-            ax.set_ylabel('q(t)')            
+            ax.set_ylabel('q(t)')
+            ax.plot(xvals, yvals)
 
-            graph = random.getrandbits(16)            
-            plt.savefig("./graphs/%s" % graph)
+            func2 = lambdify(t, solution_diff.rhs, 'numpy')
+            xvals2 = np.linspace(0, 10, 100)
+            yvals2 = func2(xvals)
+            ax2 = fig.add_subplot(212)
+            ax2.set_xlabel('t')
+            ax2.set_ylabel('i(t)')
+            ax2.plot(xvals2, yvals2)
+
+            graph = random.getrandbits(16)
+            plt.autoscale()
+            plt.savefig("./graphs/%s" % graph, bbox_inches="tight")
         except:
-            graph = None            
+            graph = None
 
     elif condition2:
         A, C1, C2, phi, theta = symbols('A C1 C2 phi theta')
@@ -113,17 +125,19 @@ class calculate_ODE(Resource):
                   }
 
         if solved_equation[5] == "No solution":
-            return {**result, "message": "The DE has no solution"}, 200        
+            return {**result, "message": "The DE has no solution"}, 200
 
         return result, 200
+
 
 class Graph(Resource):
     def post(self):
         parser.add_argument(
             'graph', type=str, help='Rate to charge for this resource')
 
-        args = parser.parse_args()    
+        args = parser.parse_args()
         return send_file(args.graph, mimetype="image/png")
+
 
 api.add_resource(calculate_ODE, '/calculateODE')
 api.add_resource(Graph, '/graph')
