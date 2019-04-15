@@ -45,7 +45,7 @@ def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None, V=None):
 
         try:
             fig = plt.figure()
-            print(plt.style.available, file=sys.stderr)
+            
             sns.set()
             plt.style.use('ggplot')
             func = lambdify(t, solution.rhs, 'numpy')
@@ -76,6 +76,7 @@ def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None, V=None):
         solution_with_constants_diff = Eq(
             solution_with_constants.lhs.diff(t), diff(solution_with_constants.rhs, t, 1))
 
+        graph = None
         solution = None
         solution_diff = None
 
@@ -94,11 +95,11 @@ def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None, V=None):
 class calculate_ODE(Resource):
     def post(self):
         parser.add_argument(
-            'L', type=float, required=True, help='Rate to charge for this resource')
+            'L', type=float,  help='Rate to charge for this resource')
         parser.add_argument(
-            'R', type=float, required=True, help='Rate to charge for this resource')
+            'R', type=float,  help='Rate to charge for this resource')
         parser.add_argument(
-            'C', type=float, required=True, help='Rate to charge for this resource')
+            'C', type=float,  help='Rate to charge for this resource')
         parser.add_argument(
             't0', type=float, help='Rate to charge for this resource')
         parser.add_argument(
@@ -121,7 +122,8 @@ class calculate_ODE(Resource):
         result = {'charge_with_constants': latex(solved_equation[0]),
                   'current_with_constants': latex(solved_equation[1]),
                   'charge': latex(solved_equation[2]),
-                  'current':   latex(solved_equation[3])
+                  'current':   latex(solved_equation[3]),
+                  'graph': latex(solved_equation[4])
                   }
 
         if solved_equation[5] == "No solution":
@@ -136,7 +138,7 @@ class Graph(Resource):
             'graph', type=str, help='Rate to charge for this resource')
 
         args = parser.parse_args()
-        return send_file(args.graph, mimetype="image/png")
+        return send_file('graphs/%s.png' % args.graph, mimetype="image/png")
 
 
 api.add_resource(calculate_ODE, '/calculateODE')
