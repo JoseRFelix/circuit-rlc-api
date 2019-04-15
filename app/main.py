@@ -94,11 +94,11 @@ def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None, V=None):
 class calculate_ODE(Resource):
     def post(self):
         parser.add_argument(
-            'L', type=float,  help='Rate to charge for this resource')
+            'L', type=float, help='Rate to charge for this resource')
         parser.add_argument(
-            'R', type=float,  help='Rate to charge for this resource')
+            'R', type=float, help='Rate to charge for this resource')
         parser.add_argument(
-            'C', type=float,  help='Rate to charge for this resource')
+            'C', type=float, help='Rate to charge for this resource')
         parser.add_argument(
             't0', type=float, help='Rate to charge for this resource')
         parser.add_argument(
@@ -144,4 +144,4 @@ api.add_resource(calculate_ODE, '/calculateODE')
 api.add_resource(Graph, '/graph')
 
 if __name__ == "__main__":    
-    app.run(host='0.0.0.0', port=443)
+    app.run()
