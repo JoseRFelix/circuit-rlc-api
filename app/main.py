@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import random
-import sys  # development
 
 app = Flask(__name__)
 api = Api(app)
@@ -144,6 +143,5 @@ class Graph(Resource):
 api.add_resource(calculate_ODE, '/calculateODE')
 api.add_resource(Graph, '/graph')
 
-if __name__ == "__main__":
-    # Only for debugging while developing
-    app.run(host='0.0.0.0', debug=True, port=8000)
+if __name__ == "__main__":    
+    app.run(host='0.0.0.0', port=80)
