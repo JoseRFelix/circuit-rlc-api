@@ -44,7 +44,7 @@ def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None, V=None):
 
         try:
             fig = plt.figure()
-            
+
             sns.set()
             plt.style.use('ggplot')
             func = lambdify(t, solution.rhs, 'numpy')
@@ -143,5 +143,5 @@ class Graph(Resource):
 api.add_resource(calculate_ODE, '/calculateODE')
 api.add_resource(Graph, '/graph')
 
-if __name__ == "__main__":    
-    app.run()
+if __name__ == "__main__":
+    app.run(ssl_context='adhoc')

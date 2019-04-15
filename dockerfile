@@ -4,5 +4,5 @@ WORKDIR /app
 
 COPY ./app /app
 
-RUN pip install matplotlib sympy numpy flask-restful flask-cors seaborn
+RUN pip install matplotlib sympy numpy flask-restful flask-cors seaborn pyopenssl
 
