@@ -144,4 +144,4 @@ api.add_resource(calculate_ODE, '/calculateODE')
 api.add_resource(Graph, '/graph')
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=443, ssl_context='adhoc')
+    app.run(host='0.0.0.0', port=8000)
