@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import random
+import sys
 
 app = Flask(__name__)
 api = Api(app)
@@ -33,14 +34,26 @@ def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None, V=None):
     condition2 = t0 == None and t1 == None and q0 == None and i0 == None
 
     if condition1:
-        solution_with_constants = round_expr(dsolve(eq, q(t)), 3)
-        solution_with_constants_diff = Eq(
-            solution_with_constants.lhs.diff(t), diff(solution_with_constants.rhs, t, 1))
+        print("Procediendo a resolver el circuito con constantes", file=sys.stderr)
+        try:
+            solution_with_constants = round_expr(dsolve(eq, q(t)), 3)
 
-        solution = round_expr(
-            dsolve(eq, q(t), ics={q(t0): q0, q(t).diff(t).subs(t, t1): i0}), 3)
-        solution_diff = Eq(solution.lhs.diff(
-            t), diff(solution.rhs, t, 1))
+            print("Derivando la solucion...", file=sys.stderr)
+            solution_with_constants_diff = Eq(
+                solution_with_constants.lhs.diff(t), diff(solution_with_constants.rhs, t, 1))
+
+            print("Procediendo a resolver el circuito con valores iniciales",
+                  file=sys.stderr)
+            solution = round_expr(
+                dsolve(eq, q(t), ics={q(t0): q0, q(t).diff(t).subs(t, t1): i0}), 3)
+
+            print("Derivando...", file=sys.stderr)
+            solution_diff = Eq(solution.lhs.diff(
+                t), diff(solution.rhs, t, 1))
+        except:
+            return "Couldn't solve"
+
+        print("Listo!", file=sys.stderr)
 
         try:
             fig = plt.figure()
@@ -71,9 +84,12 @@ def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None, V=None):
 
     elif condition2:
         A, C1, C2, phi, theta = symbols('A C1 C2 phi theta')
+        print("Procediendo a resolver el circuito con constantes", file=sys.stderr)
         solution_with_constants = round_expr(dsolve(eq, q(t)), 3)
+        print("Derivando...", file=sys.stderr)
         solution_with_constants_diff = Eq(
             solution_with_constants.lhs.diff(t), diff(solution_with_constants.rhs, t, 1))
+        print("Listo!", file=sys.stderr)
 
         graph = None
         solution = None
@@ -83,12 +99,12 @@ def solve_ODE_equation(L, R, C, t0=None, t1=None, q0=None, i0=None, V=None):
         solution = None
         return solution
 
-    check = checkodesol(eq, solution_with_constants)
+    #check = checkodesol(eq, solution_with_constants)
 
-    if check[0]:
-        return [solution_with_constants, solution_with_constants_diff, solution, solution_diff, graph, None]
-    else:
-        return [solution_with_constants, solution_with_constants_diff, solution, solution_diff, graph, "No solution"]
+    # if check[0]:
+    return [solution_with_constants, solution_with_constants_diff, solution, solution_diff, graph, None]
+   # else:
+    #    return [solution_with_constants, solution_with_constants_diff, solution, solution_diff, graph, "No solution"]
 
 
 class calculate_ODE(Resource):
@@ -117,6 +133,8 @@ class calculate_ODE(Resource):
 
         if solved_equation == None:
             return {"message": "Must send correct initial values"}, 400
+        elif solved_equation == "Couldn't solve":
+            return {"message": "Couldn't solve"}, 500
 
         result = {'charge_with_constants': latex(solved_equation[0]),
                   'current_with_constants': latex(solved_equation[1]),
